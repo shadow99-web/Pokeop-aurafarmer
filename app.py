@@ -87,19 +87,28 @@ def get_best_match(text):
     if not text:
         return None
 
-    # 1. Strip Markdown asterisks immediately
+    # 1. Clean Markdown bold formatting asterisks immediately
     clean_text = text.replace('*', '')
 
-    # 2. 🔥 THE UNBREAKABLE FILTER: 
-    # Loops through the string and drops all hidden format (Cf) or control (Cc) characters dynamically
+    # 2. 🔥 THE UNBREAKABLE BLOCK PURGE:
+    # This explicitly wipes the entire core blocks where ALL hidden spaces, 
+    # zero-width strings, variation selectors, and formatting overrides hide.
+    # Covers: \u200b-\u200f, \u202a-\u202e, \u2060-\u206f, \ufeff, and \ufe00-\ufe0f
+    clean_text = re.sub(r'[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\ufe00-\ufe0f]', '', clean_text)
+
+    # 3. Dynamic Category Sanitization Fallback
     clean_text = "".join(
         ch for ch in clean_text 
-        if unicodedata.category(ch) not in ('Cf', 'Cc')
+        if unicodedata.category(ch) not in ('Cf', 'Cc', 'Mn', 'Me')
     )
 
-    # 3. Extract the first line name safely
+    # 4. Extract the first line name safely
     raw_line = clean_text.split('\n')[0].split(':')[0].strip().upper()
     
+    # Check manual map corrections first
+    if raw_line in pokemon_map:
+        return pokemon_map[raw_line]
+
     prefixes_to_ignore = [
         "HISUIAN", "ALOLAN", "GALARIAN", "PALDEAN", "FIGHTING",
         "PSYCHIC", "ICE", "ZENITH", "ORIGIN", "THERIAN", "SKY",
@@ -113,8 +122,8 @@ def get_best_match(text):
     while words and words[0] in prefixes_to_ignore:
         words.pop(0)
         
-    raw_line = " ".join(words)
-    clean_ocr = "".join(c for c in raw_line if c.isalnum())
+    processed_line = " ".join(words)
+    clean_ocr = "".join(c for c in processed_line if c.isalnum())
     
     if clean_ocr in pokemon_map:
         return pokemon_map[clean_ocr]
@@ -123,14 +132,24 @@ def get_best_match(text):
         with open("pokemons.txt", "r") as f:
             all_names = f.read().splitlines()
         compare_list = [n.lower().replace(" ", "").replace("-", "") for n in all_names]
+        
+        # Check matching algorithms on the processed string
         matches = difflib.get_close_matches(clean_ocr.lower(), compare_list, n=1, cutoff=0.3)
         if matches:
             index = compare_list.index(matches[0])
             return all_names[index]
+            
+        # Multi-Word Backwards Scraper (e.g., Lifeguard Lucario -> Lucario)
+        for word in reversed(words):
+            clean_word = "".join(c for c in word if c.isalnum()).lower()
+            if clean_word in compare_list:
+                index = compare_list.index(clean_word)
+                return all_names[index]
     except:
         pass
         
     return raw_line if raw_line else None
+
 
         
 async def query_private_onnx_api(image_url):
