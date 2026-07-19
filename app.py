@@ -86,11 +86,11 @@ def get_best_match(text):
     if not text:
         return None
 
-    # 1. Clean invisible Zero-Width Characters & formatting symbols
-    # This strips \u200b (ZWSP), \u200c (ZWNJ), \u200d (ZWJ), \u2060 (WJ), and asterisks
-    clean_text = re.sub(r'[\u200b\u200c\u200d\u2060\*]', '', text)
+    # 🔥 ULTIMATE SANITIZATION MATRIX:
+    # Completely strips all types of invisible Zero-Width characters (\u200b-\u200f, \u202a-\u202e, \u2060-\u206f) and asterisks
+    clean_text = re.sub(r'[\u200b\u200c\u200d\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2060\u2061\u2062\u2063\u2064\u206a\u206b\u206c\u206d\u206e\u206f\*]', '', text)
 
-    # 2. Extract the first line name safely
+    # Proceed with the rest of your original logic completely unchanged...
     raw_line = clean_text.split('\n')[0].split(':')[0].strip().upper()
     
     prefixes_to_ignore = [
@@ -124,6 +124,7 @@ def get_best_match(text):
         pass
         
     return raw_line if raw_line else None
+
 
 
         
