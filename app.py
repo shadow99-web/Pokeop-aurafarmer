@@ -87,22 +87,20 @@ def get_best_match(text):
     if not text:
         return None
 
-    # 1. Clean Markdown bold formatting asterisks immediately
-    clean_text = text.replace('*', '')
-
-    # 2. 🔥 THE UNBREAKABLE BLOCK PURGE:
+    # 1. 🔥 THE UNBREAKABLE BLOCK PURGE (MUST RUN FIRST) 🔥
     # This explicitly wipes the entire core blocks where ALL hidden spaces, 
     # zero-width strings, variation selectors, and formatting overrides hide.
     # Covers: \u200b-\u200f, \u202a-\u202e, \u2060-\u206f, \ufeff, and \ufe00-\ufe0f
+    clean_text = text.replace('*', '')
     clean_text = re.sub(r'[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\ufe00-\ufe0f]', '', clean_text)
 
-    # 3. Dynamic Category Sanitization Fallback
+    # 2. Dynamic Category Sanitization Fallback
     clean_text = "".join(
         ch for ch in clean_text 
         if unicodedata.category(ch) not in ('Cf', 'Cc', 'Mn', 'Me')
     )
 
-    # 4. Extract the first line name safely
+    # 3. Extract the first line name safely now that it's 100% clean
     raw_line = clean_text.split('\n')[0].split(':')[0].strip().upper()
     
     # Check manual map corrections first
