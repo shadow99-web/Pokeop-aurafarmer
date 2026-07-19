@@ -33,12 +33,10 @@ ConnectionState.parse_ready_supplemental = patched_parse_ready_supplemental
 
 # --- CONFIG ---
 TOKEN = os.getenv("TOKEN")
-POKENAME_BOT_ID = 874910942490677270
-POKETWO_ID = 716390085896962058
-SPAM_CHANNEL_ID = 1459841583536148601
+POKEOP_ID = 1471263987340410978
 ADMIN_IDS = [1378954077462986772, 876746134352183336, 1489464610565390336]
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-REPO_NAME = "shadow99-web/P2-aura-farmer"
+REPO_NAME = "shadow99-web/Pokeop-aurafarmer"
 FILE_PATH = "corrections.py"
 ai_enabled = False  # Global AI toggle
 
@@ -87,7 +85,14 @@ def solve_hint(hint_pattern):
 def get_best_match(text):
     if not text:
         return None
-    raw_line = text.split('\n')[0].split(':')[0].strip().upper()
+
+    # 1. Clean invisible Zero-Width Characters & formatting symbols
+    # This strips \u200b (ZWSP), \u200c (ZWNJ), \u200d (ZWJ), \u2060 (WJ), and asterisks
+    clean_text = re.sub(r'[\u200b\u200c\u200d\u2060\*]', '', text)
+
+    # 2. Extract the first line name safely
+    raw_line = clean_text.split('\n')[0].split(':')[0].strip().upper()
+    
     prefixes_to_ignore = [
         "HISUIAN", "ALOLAN", "GALARIAN", "PALDEAN", "FIGHTING",
         "PSYCHIC", "ICE", "ZENITH", "ORIGIN", "THERIAN", "SKY",
@@ -96,13 +101,17 @@ def get_best_match(text):
         "MINT", "LEMON", "SALTED", "CUPCAKE", "DUSK", "MIDNIGHT",
         "CREAM", "BERRY", "SWEET", "LOVE", "STAR", "CLOVER", "FLOWER", "RIBBON"
     ]
+    
     words = raw_line.split()
     while words and words[0] in prefixes_to_ignore:
         words.pop(0)
+        
     raw_line = " ".join(words)
     clean_ocr = "".join(c for c in raw_line if c.isalnum())
+    
     if clean_ocr in pokemon_map:
         return pokemon_map[clean_ocr]
+        
     try:
         with open("pokemons.txt", "r") as f:
             all_names = f.read().splitlines()
@@ -113,6 +122,7 @@ def get_best_match(text):
             return all_names[index]
     except:
         pass
+        
     return raw_line if raw_line else None
 
 
@@ -239,77 +249,7 @@ async def set_spam_lock_github(status):
     except:
         return False
 
-async def click_button_by_id(message, target_msg_id, button_identifier):
-    """
-    Simulate clicking a button in a Discord message.
-    button_identifier can be either the button's label or its custom_id.
-    """
-    try:
-        target_msg = await message.channel.fetch_message(int(target_msg_id))
-    except Exception as e:
-        return f"❌ Could not fetch message: {e}"
 
-    # Find the button
-    button = None
-    for component in target_msg.components:
-        for child in component.children:
-            if hasattr(child, 'custom_id'):
-                if child.label == button_identifier or child.custom_id == button_identifier:
-                    button = child
-                    break
-        if button:
-            break
-
-    if not button:
-        return "❌ Button not found. Check the message ID and button label/custom_id."
-
-    # Build interaction payload (standard for self‑bots)
-    token = message._state.http.token
-    interaction_payload = {
-        "type": 2,                               # Message component interaction
-        "application_id": str(target_msg.author.id),
-        "guild_id": str(message.guild.id) if message.guild else None,
-        "channel_id": str(message.channel.id),
-        "message_id": str(target_msg_id),
-        "session_id": "a" * 32,                  # placeholder, usually works
-        "data": {
-            "component_type": 2,                 # button
-            "custom_id": button.custom_id
-        },
-        "message_flags": 0,
-        "nonce": str(random.randint(10**18, 10**19 - 1))
-    }
-
-    if not message.guild:
-        interaction_payload.pop("guild_id")
-
-    headers = {
-        "Authorization": token,
-        "Content-Type": "application/json"
-    }
-
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post("https://discord.com/api/v9/interactions", json=interaction_payload, headers=headers) as resp:
-                if resp.status in (200, 204):
-                    return "✅ Button clicked successfully!"
-                else:
-                    text = await resp.text()
-                    return f"❌ API error {resp.status}: {text[:200]}"
-        except Exception as e:
-            return f"❌ Request failed: {e}"
-
-    # Send the POST request
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post("https://discord.com/api/v9/interactions", json=interaction_payload, headers=headers) as resp:
-                if resp.status in (200, 204):
-                    return "✅ Button clicked successfully!"
-                else:
-                    text = await resp.text()
-                    return f"❌ API error {resp.status}: {text[:200]}"
-        except Exception as e:
-            return f"❌ Request failed: {e}"
             
 async def get_pokemon_name(image_url):
     url = "https://api.ocr.space/parse/image"
@@ -338,23 +278,9 @@ async def catch_action(message, name):
     if name.upper() in pokemon_map:
         name = pokemon_map[name.upper()]
     await asyncio.sleep(random.uniform(2.8, 4.5))
-    await message.channel.send(f"<@716390085896962058> c {name}")
+    await message.channel.send(f"<@1471263987340410978> c {name}")
     print(f"🎯 Attempted Catch: {name}")
 
-async def spammer_v2(alt_client):
-    await alt_client.wait_until_ready()
-    from corrections import SPAM_LOCK
-    await asyncio.sleep(random.randint(5, 20))
-    channel = alt_client.get_channel(SPAM_CHANNEL_ID)
-    while not alt_client.is_closed():
-        if spam_enabled and not captcha_hit and str(SPAM_LOCK) != "True":
-            try:
-                await channel.send(random.choice(SPAM_MESSAGES))
-                await asyncio.sleep(random.uniform(12.0, 18.0))
-            except:
-                await asyncio.sleep(20)
-        else:
-            await asyncio.sleep(5)
 
 # --- MULTI-CLIENT HANDLER ---
 def setup_events(alt_client, nickname):
@@ -394,11 +320,8 @@ def setup_events(alt_client, nickname):
         if message.author.id in ADMIN_IDS or message.author.id == alt_client.user.id:
             content = message.content.strip()
             cmd = content.lower()
-            if cmd == ".stop":
-                spam_enabled = False
-                await set_spam_lock_github("True")
-                await message.channel.send(f"🚫 **{nickname} Spammer Stopped.**")
-            elif content == ".resume":
+            
+            if content == ".resume":
                 alt_client.captcha_locked = False
                 await message.channel.send(f"✅ **{nickname}** restriction cleared! Target unlocked.")
                 return
@@ -424,16 +347,16 @@ def setup_events(alt_client, nickname):
             elif cmd == ".ping":
                 await message.channel.send(f"🏓 `{nickname}` Pong! `{round(alt_client.latency * 1000)}ms`")
             elif cmd == ".check":
-                await message.channel.send("<@716390085896962058> bal")
+                await message.channel.send("<@1471263987340410978> bal")
             elif cmd.startswith(".s "):
                 await message.channel.send(content[3:])
             elif cmd.startswith(".trade"):
                 if "confirm" in cmd:
-                    await message.channel.send("<@716390085896962058> trade confirm")
+                    await message.channel.send("<@1471263987340410978> trade confirm")
                 elif "add" in cmd:
-                    await message.channel.send(f"<@716390085896962058> trade add {content[11:]}")
+                    await message.channel.send(f"<@1471263987340410978> trade add {content[11:]}")
                 else:
-                    await message.channel.send(f"<@716390085896962058> trade {content[7:]}")
+                    await message.channel.send(f"<@1471263987340410978> trade {content[7:]}")
             
             elif cmd.startswith(".click "):
                 parts = content.split()
@@ -465,7 +388,7 @@ def setup_events(alt_client, nickname):
                     await message.channel.send(f"✅ Correction Added" if success else "⚠️ Sync Failed")
 
         # CAPTCHA detection – only lock if captcha is for this bot
-        if message.author.id == POKETWO_ID:
+        if message.author.id == POKEOP_ID:
             low_msg = message.content.lower()
             if "captcha" in low_msg or "verify" in low_msg:
                 match = re.search(r'captcha/(\d+)', message.content)
@@ -525,7 +448,7 @@ def setup_events(alt_client, nickname):
                 if not getattr(alt_client, 'mention_only_mode', False):
                     print(f"❌ [{nickname}] Guess was wrong. Forcing Hint...")
                     await asyncio.sleep(1.0)
-                    await message.channel.send("<@716390085896962058> h")
+                    await message.channel.send("<@1471263987340410978> hint")
                 else:
                     print(f"🔇 [{nickname}] Wrong guess, but mention mode active – skipping hint.")
 
@@ -548,7 +471,7 @@ def setup_events(alt_client, nickname):
 
         # ===== CATCHING LAYERS (only Layer 0 and Layer 1) =====
         # LAYER 0: Assistant bots
-        if message.author.id in [854233015475109888, 1459494731775217860, 1307910235737948252]:
+        if message.author.id in [1466843720518471863]:
             matched = get_best_match(message.content)
             if matched:
                 if getattr(alt_client, 'mention_only_mode', False):
@@ -560,23 +483,6 @@ def setup_events(alt_client, nickname):
                 await asyncio.sleep(10)
                 alt_client.ocr_lock = False
                 return
-
-        # LAYER 1: PokeName bot OCR
-        elif message.author.id == POKENAME_BOT_ID:
-            if getattr(alt_client, 'mention_only_mode', False):
-                if not (message.mentions and alt_client.user in message.mentions):
-                    print(f"ℹ️ [{nickname}] Mention-only mode active, bot not mentioned. Skipping spawn.")
-                    return
-            if getattr(alt_client, 'ocr_lock', False):
-                print(f"⏩ [{nickname}] Assistant handled it. Skipping OCR.")
-                return
-            img = message.attachments[0].url if message.attachments else (message.embeds[0].image.url if message.embeds else None)
-            if img:
-                raw_ocr = await get_pokemon_name(img)
-                matched = get_best_match(raw_ocr)
-                if matched:
-                    await catch_action(message, matched)
-                    return
                 
                 
 # --- BOOT LOGIC ---
